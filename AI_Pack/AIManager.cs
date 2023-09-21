@@ -3,20 +3,26 @@ using Microsoft.ML.OnnxRuntime;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp.Drawing.Processing;
 using System.Net;
+using System.Runtime.ConstrainedExecution;
 
 namespace AIPack {
     public class AIManager {
-        public InferenceSession session;
-        private bool IsDownloaded = false;
+        private InferenceSession session;
         public AIManager() {
-        }
-        public static void DownloadAIModel() {
             WebClient webclient = new WebClient();
             string url = "https://storage.yandexcloud.net/dotnet4/tinyyolov2-8.onnx";
             string modelFileName = "tinyyolov2-8.onnx";
-            webclient.DownloadFile(url, modelFileName);
+            int downloadCounter = 0;
+            while (!File.Exists(modelFileName) && downloadCounter++ != 5) {
+                webclient.DownloadFile(url, modelFileName);
+            }
+            if (downloadCounter == 5) {
+                throw new Exception("Unable to dowload file. Try again later.");
+            }
+
+            session = new InferenceSession("tinyyolov2-8.onnx");
         }
-        public void CallModel(ISave saver, string filename) {
+        public void CallModel(/*ISave saver, */string filename) {
             var image = Image.Load<Rgb24>(filename);
 
             int imageWidth = image.Width;
@@ -54,6 +60,7 @@ namespace AIPack {
 
             // Вычисляем предсказание нейросетью
             //using var session = new InferenceSession("tinyyolov2-8.onnx");
+            
             using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
 
             // Получаем результаты
