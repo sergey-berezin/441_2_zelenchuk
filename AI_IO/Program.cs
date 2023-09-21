@@ -1,5 +1,6 @@
 ﻿using AIPack;
 
-AIManager test  = new AIManager();
+static void Main() {
+    AIManager aIManager = new AIManager();
 
-test.func();
+}
