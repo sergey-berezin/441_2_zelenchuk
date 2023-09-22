@@ -4,10 +4,32 @@ using SixLabors.Fonts;
 using SixLabors.ImageSharp.Drawing.Processing;
 using System.Net;
 using System.Runtime.ConstrainedExecution;
+using System.Reflection.Metadata.Ecma335;
+using SixLabors.ImageSharp;
 
 namespace AIPack {
     public class AIManager {
         private InferenceSession session;
+
+        private (double, double)[] anchors = new (double, double)[] {
+               (1.08, 1.19),
+               (3.42, 4.41),
+               (6.63, 11.38),
+               (9.42, 5.11),
+               (16.62, 10.52)
+            };
+
+        private string[] labels = new string[] {
+                "aeroplane", "bicycle", "bird", "boat", "bottle",
+                "bus", "car", "cat", "chair", "cow",
+                "diningtable", "dog", "horse", "motorbike", "person",
+                "pottedplant", "sheep", "sofa", "train", "tvmonitor"
+            };
+
+        private const int CellCount = 13; // 13x13 ячеек
+        private const int BoxCount = 5; // 5 прямоугольников в каждой ячейке
+        private const int ClassCount = 20; // 20 классов
+
         public AIManager() {
             WebClient webclient = new WebClient();
             string url = "https://storage.yandexcloud.net/dotnet4/tinyyolov2-8.onnx";
@@ -22,8 +44,12 @@ namespace AIPack {
 
             session = new InferenceSession("tinyyolov2-8.onnx");
         }
-        public void CallModel(/*ISave saver, */string filename) {
-            var image = Image.Load<Rgb24>(filename);
+
+        public Task CallModelAsync(ISave saver, Image<Rgb24> image, string filename, CancellationToken token) {
+            return Task.Factory.StartNew(() => { CallModel(saver, image, filename); }, token);
+        }
+
+        private void CallModel(ISave saver, Image<Rgb24> image, string filename) {
 
             int imageWidth = image.Width;
             int imageHeight = image.Height;
@@ -59,56 +85,15 @@ namespace AIPack {
             };
 
             // Вычисляем предсказание нейросетью
-            //using var session = new InferenceSession("tinyyolov2-8.onnx");
-            
-            using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
+            IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results;
 
+            //Thread.Sleep(1000);
+            lock (session) {
+                results = session.Run(inputs);
+            }
+            
             // Получаем результаты
             var outputs = results.First().AsTensor<float>();
-
-            foreach (var d in outputs.Dimensions)
-                Console.WriteLine(d);
-
-
-            const int CellCount = 13; // 13x13 ячеек
-            const int BoxCount = 5; // 5 прямоугольников в каждой ячейке
-            const int ClassCount = 20; // 20 классов
-
-            string[] labels = new string[]
-            {
-                "aeroplane", "bicycle", "bird", "boat", "bottle",
-                "bus", "car", "cat", "chair", "cow",
-                "diningtable", "dog", "horse", "motorbike", "person",
-                "pottedplant", "sheep", "sofa", "train", "tvmonitor"
-            };
-
-            float Sigmoid(float value) {
-                var e = (float)Math.Exp(value);
-                return e / (1.0f + e);
-            }
-
-            float[] Softmax(float[] values) {
-                var exps = values.Select(v => Math.Exp(v));
-                var sum = exps.Sum();
-                return exps.Select(e => (float)(e / sum)).ToArray();
-            }
-
-            int IndexOfMax(float[] values) {
-                int idx = 0;
-                for (int i = 1; i < values.Length; i++)
-                    if (values[i] > values[idx])
-                        idx = i;
-                return idx;
-            }
-
-            var anchors = new (double, double)[]
-            {
-               (1.08, 1.19),
-               (3.42, 4.41),
-               (6.63, 11.38),
-               (9.42, 5.11),
-               (16.62, 10.52)
-            };
 
             int cellSize = TargetSize / CellCount;
 
@@ -155,28 +140,7 @@ namespace AIPack {
                             });
                         }
                     }
-            boundingBoxes.Save("boundingboxes.jpg");
-
-            void Annotate(Image<Rgb24> target, IEnumerable<ObjectBox> objects) {
-                foreach (var objbox in objects) {
-                    target.Mutate(ctx => {
-                        ctx.DrawPolygon(
-                            Pens.Solid(Color.Blue, 2),
-                            new PointF[] {
-                                new PointF((float)objbox.XMin, (float)objbox.YMin),
-                                new PointF((float)objbox.XMin, (float)objbox.YMax),
-                                new PointF((float)objbox.XMax, (float)objbox.YMax),
-                                new PointF((float)objbox.XMax, (float)objbox.YMin)
-                            });
-
-                        ctx.DrawText(
-                            $"{labels[objbox.Class]}",
-                            SystemFonts.Families.First().CreateFont(16),
-                            Color.Blue,
-                            new PointF((float)objbox.XMin, (float)objbox.YMax));
-                    });
-                }
-            }
+            //boundingBoxes.Save("boundingboxes.jpg");
 
             var annotated = resized.Clone();
             Annotate(annotated, objects);
@@ -187,7 +151,6 @@ namespace AIPack {
                 var o1 = objects[i];
                 for (int j = i + 1; j < objects.Count;) {
                     var o2 = objects[j];
-                    Console.WriteLine($"IoU({i},{j})={o1.IoU(o2)}");
                     if (o1.Class == o2.Class && o1.IoU(o2) > 0.6) {
                         if (o1.Confidence < o2.Confidence) {
                             objects[i] = o1 = objects[j];
@@ -200,21 +163,66 @@ namespace AIPack {
                 }
             }
 
+            foreach (var obj in objects)
+                saver.SaveToCSV(obj.XMin, obj.YMax, obj.XMax - obj.XMin, obj.YMax - obj.YMin, obj.Class);
+
             var final = resized.Clone();
             Annotate(final, objects);
-            final.SaveAsJpeg("final.jpg");
-
+            saver.SavePhoto(final, filename.Split('.')[0] + "_out.jpg");
         }
 
+        private float Sigmoid(float value) {
+            var e = (float)Math.Exp(value);
+            return e / (1.0f + e);
+        }
+
+        private float[] Softmax(float[] values) {
+            var exps = values.Select(v => Math.Exp(v));
+            var sum = exps.Sum();
+            return exps.Select(e => (float)(e / sum)).ToArray();
+        }
+
+        private int IndexOfMax(float[] values) {
+            int idx = 0;
+            for (int i = 1; i < values.Length; i++)
+                if (values[i] > values[idx])
+                    idx = i;
+            return idx;
+        }
+
+        private void Annotate(Image<Rgb24> target, IEnumerable<ObjectBox> objects) {
+            foreach (var objbox in objects) {
+                target.Mutate(ctx => {
+                    ctx.DrawPolygon(
+                        Pens.Solid(Color.Blue, 2),
+                        new PointF[] {
+                                new PointF((float)objbox.XMin, (float)objbox.YMin),
+                                new PointF((float)objbox.XMin, (float)objbox.YMax),
+                                new PointF((float)objbox.XMax, (float)objbox.YMax),
+                                new PointF((float)objbox.XMax, (float)objbox.YMin)
+                        });
+
+                    ctx.DrawText(
+                        $"{labels[objbox.Class]}",
+                        SystemFonts.Families.First().CreateFont(16),
+                        Color.Blue,
+                        new PointF((float)objbox.XMin, (float)objbox.YMax));
+                });
+            }
+        }
     }
     public record ObjectBox(double XMin, double YMin, double XMax, double YMax, double Confidence, int Class) {
         public double IoU(ObjectBox b2) =>
             (Math.Min(XMax, b2.XMax) - Math.Max(XMin, b2.XMin)) * (Math.Min(YMax, b2.YMax) - Math.Max(YMin, b2.YMin)) /
             ((Math.Max(XMax, b2.XMax) - Math.Min(XMin, b2.XMin)) * (Math.Max(YMax, b2.YMax) - Math.Min(YMin, b2.YMin)));
+
+        public override string ToString() {
+            return $"x = {XMin}\ny = {YMax}\nw = {XMax - XMin}\nh = {YMax - YMin}\nClass = {Class}";
+        }
     }
 
     public interface ISave {
-        public string Name { get; set; }
-        public void Save();
+        public void SaveToCSV(double X, double Y, double W, double H, int Class);
+        public void SavePhoto(Image<Rgb24> Image, string filname);
     }
 }

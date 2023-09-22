@@ -8,7 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AIPack" Version="0.0.8" />
+    <PackageReference Include="AIPack" Version="0.1.6" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.0.2" />
   </ItemGroup>
 	
 </Project>
