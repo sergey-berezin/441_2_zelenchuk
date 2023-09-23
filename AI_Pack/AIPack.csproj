@@ -1,7 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	  <Version>0.1.6</Version>
+	<Authors>Zelenchuk</Authors>
+	<PackageId>AIPack</PackageId>
+	<Version>1.0.2</Version>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

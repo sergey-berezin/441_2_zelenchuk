@@ -46,7 +46,7 @@ namespace AIPack {
         }
 
         public Task CallModelAsync(ISave saver, Image<Rgb24> image, string filename, CancellationToken token) {
-            return Task.Factory.StartNew(() => { CallModel(saver, image, filename); }, token);
+            return Task.Factory.StartNew(() => CallModel(saver, image, filename), token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
 
         private void CallModel(ISave saver, Image<Rgb24> image, string filename) {
@@ -77,7 +77,7 @@ namespace AIPack {
                     }
                 }
             });
-
+            
             // Подготавливаем входные данные нейросети. Имя input задано в файле модели
             var inputs = new List<NamedOnnxValue>
             {
@@ -91,7 +91,7 @@ namespace AIPack {
             lock (session) {
                 results = session.Run(inputs);
             }
-            
+
             // Получаем результаты
             var outputs = results.First().AsTensor<float>();
 
@@ -144,7 +144,7 @@ namespace AIPack {
 
             var annotated = resized.Clone();
             Annotate(annotated, objects);
-            annotated.SaveAsJpeg("annotated.jpg");
+            //annotated.SaveAsJpeg("annotated.jpg");
 
             // Убираем дубликаты
             for (int i = 0; i < objects.Count; i++) {
@@ -215,10 +215,6 @@ namespace AIPack {
         public double IoU(ObjectBox b2) =>
             (Math.Min(XMax, b2.XMax) - Math.Max(XMin, b2.XMin)) * (Math.Min(YMax, b2.YMax) - Math.Max(YMin, b2.YMin)) /
             ((Math.Max(XMax, b2.XMax) - Math.Min(XMin, b2.XMin)) * (Math.Max(YMax, b2.YMax) - Math.Min(YMin, b2.YMin)));
-
-        public override string ToString() {
-            return $"x = {XMin}\ny = {YMax}\nw = {XMax - XMin}\nh = {YMax - YMin}\nClass = {Class}";
-        }
     }
 
     public interface ISave {
