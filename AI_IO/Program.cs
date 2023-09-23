@@ -41,20 +41,27 @@ namespace AI_App {
             }
         }
 
-        class Saver : ISave {
-            public void SaveToCSV(double X, double Y, double W, double H, int Class) {
-                string filename = "..\\..\\..\\..\\res.csv";
-                FileInfo fileInfo = new FileInfo(filename);
+        class Saver : IManagerTools {
+            public void Logger(string message) => Console.WriteLine(message);
+            public void SaveToCSV(double X, double Y, double W, double H, int Class, string resfilename) {
+                string csvfilename = "..\\..\\..\\..\\res.csv";
+                FileInfo fileInfo = new FileInfo(csvfilename);
 
                 semaphore.Wait();
                 //Console.WriteLine(Task.CurrentId);
                 if (!fileInfo.Exists || fileInfo.Length == 0) {
-                    var file = File.Create(filename);
-                    file.Write(Encoding.Default.GetBytes("X, Y, W, H, Class\n"));
+                    var file = File.Create(csvfilename);
+                    file.Write(Encoding.Default.GetBytes("Filename, Class, X, Y, W, H\n"));
                     file.Close();
                 }
                 else {
-                    File.AppendAllText(filename, $"{X.ToString().Replace(',', '.')},{Y.ToString().Replace(',', '.')},{W.ToString().Replace(',', '.')},{H.ToString().Replace(',', '.')},{Class.ToString()}\n");
+                    File.AppendAllText(csvfilename,
+                        $"{Path.GetFullPath("..\\..\\..\\..\\out_photo\\" + resfilename)}, " +
+                        $"{Class.ToString()}, " +
+                        $"{X.ToString().Replace(',', '.')}, " +
+                        $"{Y.ToString().Replace(',', '.')}, " +
+                        $"{W.ToString().Replace(',', '.')}, " +
+                        $"{H.ToString().Replace(',', '.')}\n");
                 }
                 //Console.WriteLine(Task.CurrentId);
                 semaphore.Release();

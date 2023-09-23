@@ -45,11 +45,12 @@ namespace AIPack {
             session = new InferenceSession("tinyyolov2-8.onnx");
         }
 
-        public Task CallModelAsync(ISave saver, Image<Rgb24> image, string filename, CancellationToken token) {
-            return Task.Factory.StartNew(() => CallModel(saver, image, filename), token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        public Task CallModelAsync(IManagerTools tools, Image<Rgb24> image, string filename, CancellationToken token) {
+            return Task.Factory.StartNew(() => CallModel(tools, image, filename), token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
 
-        private void CallModel(ISave saver, Image<Rgb24> image, string filename) {
+        private void CallModel(IManagerTools tools, Image<Rgb24> image, string filename) {
+            tools.Logger($"Started file: {filename}");
 
             int imageWidth = image.Width;
             int imageHeight = image.Height;
@@ -164,11 +165,13 @@ namespace AIPack {
             }
 
             foreach (var obj in objects)
-                saver.SaveToCSV(obj.XMin, obj.YMax, obj.XMax - obj.XMin, obj.YMax - obj.YMin, obj.Class);
+                tools.SaveToCSV(obj.XMin, obj.YMax, obj.XMax - obj.XMin, obj.YMax - obj.YMin, obj.Class, filename.Split('.')[0] + "_out.jpg");
 
             var final = resized.Clone();
             Annotate(final, objects);
-            saver.SavePhoto(final, filename.Split('.')[0] + "_out.jpg");
+            tools.SavePhoto(final, filename.Split('.')[0] + "_out.jpg");
+
+            tools.Logger($"Finished file: {filename}");
         }
 
         private float Sigmoid(float value) {
@@ -217,8 +220,9 @@ namespace AIPack {
             ((Math.Max(XMax, b2.XMax) - Math.Min(XMin, b2.XMin)) * (Math.Max(YMax, b2.YMax) - Math.Min(YMin, b2.YMin)));
     }
 
-    public interface ISave {
-        public void SaveToCSV(double X, double Y, double W, double H, int Class);
+    public interface IManagerTools {
+        public void Logger(string message);
+        public void SaveToCSV(double X, double Y, double W, double H, int Class, string resfilename);
         public void SavePhoto(Image<Rgb24> Image, string filname);
     }
 }
