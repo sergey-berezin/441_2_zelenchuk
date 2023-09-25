@@ -42,6 +42,11 @@ namespace AIPack {
             string url = "https://storage.yandexcloud.net/dotnet4/tinyyolov2-8.onnx";
             string modelFileName = "tinyyolov2-8.onnx";
             int downloadCounter = 0;
+            if (File.Exists(modelFileName)) {
+                IsDownloaded = true;
+                session = new InferenceSession("tinyyolov2-8.onnx");
+                return;
+            }
             while (!File.Exists(modelFileName) && downloadCounter++ != 5) {
                 try {
                     webclient.DownloadFile(url, modelFileName);

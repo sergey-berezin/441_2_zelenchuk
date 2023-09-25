@@ -25,11 +25,15 @@ namespace AI_App {
             List<Task> taskList = new List<Task>();
             CancellationTokenSource cts = new CancellationTokenSource();
 
+            if (!Directory.Exists("..\\..\\..\\..\\out_photo\\")) {
+                Directory.CreateDirectory("..\\..\\..\\..\\out_photo\\");
+            }
+
             var keyPressTask = Task.Run(() => { 
                 ConsoleKeyInfo keyInfo = Console.ReadKey();
                 cts.Cancel();
             });
-
+            
             foreach (var filename in args) {
                 var image = Image.Load<Rgb24>("..\\..\\..\\..\\in_photo\\" + filename);
                 CancellationToken token = cts.Token;
