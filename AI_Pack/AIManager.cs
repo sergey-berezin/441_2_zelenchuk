@@ -67,6 +67,7 @@ namespace AIPack {
         private void CallModel(IManagerTools tools, Image<Rgb24> image, string filename) {
             if (!IsDownloaded) {
                 tools.Logger("Model is not downloaded.");
+                return;
             }
             tools.Logger($"Started file: {filename}");
 
