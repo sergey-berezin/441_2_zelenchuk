@@ -13,6 +13,14 @@ namespace AI_App {
 
         async static Task Main(string[] args) {
             AIManager aIManager = new AIManager();
+            try {
+                aIManager.DownloadModel();
+            }
+            catch(Exception ex) {
+                Console.WriteLine(ex.Message);
+                return;
+            }
+
             Saver saver = new Saver();
             List<Task> taskList = new List<Task>();
             CancellationTokenSource cts = new CancellationTokenSource();

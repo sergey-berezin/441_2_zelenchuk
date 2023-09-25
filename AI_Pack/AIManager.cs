@@ -9,7 +9,7 @@ using SixLabors.ImageSharp;
 
 namespace AIPack {
     public class AIManager {
-        private InferenceSession session;
+        private InferenceSession ? session;
 
         private (double, double)[] anchors = new (double, double)[] {
                (1.08, 1.19),
@@ -30,15 +30,30 @@ namespace AIPack {
         private const int BoxCount = 5; // 5 прямоугольников в каждой ячейке
         private const int ClassCount = 20; // 20 классов
 
+        private bool IsDownloaded { get; set; }
+
         public AIManager() {
+            session = null;
+            IsDownloaded = false;
+        }
+
+        public void DownloadModel() {
             WebClient webclient = new WebClient();
             string url = "https://storage.yandexcloud.net/dotnet4/tinyyolov2-8.onnx";
             string modelFileName = "tinyyolov2-8.onnx";
             int downloadCounter = 0;
             while (!File.Exists(modelFileName) && downloadCounter++ != 5) {
-                webclient.DownloadFile(url, modelFileName);
+                try {
+                    webclient.DownloadFile(url, modelFileName);
+                    IsDownloaded = true;
+                }
+                catch (WebException ex) {
+                    IsDownloaded = false;
+                    throw new Exception("Unable to dowload file. Try again later.");
+                }
             }
             if (downloadCounter == 5) {
+                IsDownloaded = false;
                 throw new Exception("Unable to dowload file. Try again later.");
             }
 
@@ -50,6 +65,9 @@ namespace AIPack {
         }
 
         private void CallModel(IManagerTools tools, Image<Rgb24> image, string filename) {
+            if (!IsDownloaded) {
+                tools.Logger("Model is not downloaded.");
+            }
             tools.Logger($"Started file: {filename}");
 
             int imageWidth = image.Width;
