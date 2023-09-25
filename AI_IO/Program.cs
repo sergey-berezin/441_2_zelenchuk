@@ -23,7 +23,7 @@ namespace AI_App {
 
             Saver saver = new Saver();
             List<Task> taskList = new List<Task>();
-            CancellationTokenSource cts = new CancellationTokenSource();
+            using CancellationTokenSource cts = new CancellationTokenSource();
 
             if (!Directory.Exists("..\\..\\..\\..\\out_photo\\")) {
                 Directory.CreateDirectory("..\\..\\..\\..\\out_photo\\");
@@ -48,7 +48,6 @@ namespace AI_App {
                 Console.WriteLine("Tasks were cancaled.");
             }
             finally {
-                cts.Dispose();
                 semaphore.Dispose();
             }
         }
