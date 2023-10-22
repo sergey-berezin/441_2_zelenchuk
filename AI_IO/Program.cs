@@ -64,6 +64,13 @@ namespace AI_App {
                     var file = File.Create(csvfilename);
                     file.Write(Encoding.Default.GetBytes("Filename, Class, X, Y, W, H\n"));
                     file.Close();
+                    File.AppendAllText(csvfilename,
+                        $"{Path.GetFullPath("..\\..\\..\\..\\out_photo\\" + resfilename)}, " +
+                        $"{Class.ToString()}, " +
+                        $"{X.ToString().Replace(',', '.')}, " +
+                        $"{Y.ToString().Replace(',', '.')}, " +
+                        $"{W.ToString().Replace(',', '.')}, " +
+                        $"{H.ToString().Replace(',', '.')}\n");
                 }
                 else {
                     File.AppendAllText(csvfilename,

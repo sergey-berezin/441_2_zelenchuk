@@ -113,6 +113,7 @@ namespace AIPack {
             IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results;
 
             //Thread.Sleep(1000);
+            //Thread.Sleep(10000);
             lock (session) {
                 results = session.Run(inputs);
             }
