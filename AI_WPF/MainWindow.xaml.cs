@@ -25,7 +25,7 @@ namespace AI_WPF {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    
+
     class Saver : IManagerTools {
         public void Logger(string message) => Console.WriteLine(message);
         public void SaveToCSV(double X, double Y, double W, double H, int Class, string resfilename) {
@@ -61,12 +61,13 @@ namespace AI_WPF {
             }
         }
         public void SavePhoto(Image<Rgb24> Image, string filname) {
-            Image.SaveAsJpeg("..\\..\\..\\..\\out_photo\\" + filname);
+            if (!(new FileInfo("..\\..\\..\\..\\out_photo\\" + filname).Exists))
+                Image.SaveAsJpeg("..\\..\\..\\..\\out_photo\\" + filname);
         }
     }
 
     public class ReadyImages {
-        public string Path { get; set; }
+        public BitmapImage Image { get; set; }
         public string Title { get; set; }
 
         public static List<ReadyImages> GetReadyImages { 
@@ -77,19 +78,15 @@ namespace AI_WPF {
                 for (var i = 1; i < lines.Count; i++) {
                     files.Add(lines[i].Split(',')[0]);
                 }
-                //var files = Directory.GetFiles("C:\\Users\\jur_chik\\source\\repos\\441_2_zelenchuk\\out_photo");
+
                 var quary = files.OrderBy(x => x).GroupBy(x => x).OrderByDescending(x => x.Count());
                 foreach(var q in quary) {
-                    list.Add(new ReadyImages { Path = q.Key, Title = q.Key.Split('\\').ToList().Last() });
+                    list.Add(new ReadyImages { Image = new BitmapImage(new Uri(q.Key)), Title = q.Key.Split('\\').ToList().Last() });
                 }
                 return list;
             }
         }
-        public static List<ReadyImages> Empty { get {
-                var list = new List<ReadyImages>();
-                return list;
-            } 
-        }
+        public static List<ReadyImages> Empty { get => new List<ReadyImages>(); }
     }
 
     public partial class MainWindow : Window {
@@ -100,39 +97,36 @@ namespace AI_WPF {
         public MainWindow() {
             InitializeComponent();
 
-            //File.Delete("..\\..\\..\\..\\res.csv");
-            //var dir = new DirectoryInfo("..\\..\\..\\..\\out_photo\\");
-            //foreach (FileInfo file in dir.GetFiles()) {
-            //    file.Delete();
-            //}
-
             startCommand = new AsyncRelayCommand(async _ => {
                 cts = new CancellationTokenSource();
+                if (!Directory.Exists("..\\..\\..\\..\\out_photo\\")) {
+                    Directory.CreateDirectory("..\\..\\..\\..\\out_photo\\");
+                }
+
+                File.WriteAllText("..\\..\\..\\..\\res.csv", string.Empty);
+
                 Microsoft.Win32.OpenFileDialog dialog = new Microsoft.Win32.OpenFileDialog();
                 dialog.DefaultExt = ".jpg";
                 dialog.Filter = "Images (.jpg)|*.jpg";
                 dialog.Multiselect = true;
                 dialog.ShowDialog();
-
                 AIManager aIManager = new AIManager();
-                try {
-                    aIManager.DownloadModel();
-                }
-                catch (Exception ex) {
-                    Console.WriteLine(ex.Message);
-                    return;
-                }
-
                 Saver saver = new Saver();
-                List<Task> taskList = new List<Task>();
+                Preview.ItemsSource = ReadyImages.Empty;
+                SelectedImage.Source = new BitmapImage();
+                SelectedText.Text= string.Empty;
 
-                //File.Delete("..\\..\\..\\..\\res.csv");
-                var dir = new DirectoryInfo("..\\..\\..\\..\\out_photo\\");
-                foreach (FileInfo file in dir.GetFiles()) {
-                    file.Delete();
+                try {
+                    try {
+                        await Task.Run(() => aIManager.DownloadModel());
+                    }
+                    catch (Exception ex) {
+                        Console.WriteLine(ex.Message);
+                        return;
+                    }
                 }
-                if (!Directory.Exists("..\\..\\..\\..\\out_photo\\")) {
-                    Directory.CreateDirectory("..\\..\\..\\..\\out_photo\\");
+                catch(Exception ex) {
+                    MessageBox.Show(ex.Message, ex.StackTrace);
                 }
 
                 for (int i = 0; i < dialog.SafeFileNames.Length; i++) {
@@ -140,13 +134,7 @@ namespace AI_WPF {
                     CancellationToken token = cts.Token;
                     await aIManager.CallModelAsync(saver, image, dialog.SafeFileNames[i], token);
 
-                    List<ReadyImages> list = new List<ReadyImages>();
-                    var files = Directory.GetFiles("C:\\Users\\jur_chik\\source\\repos\\441_2_zelenchuk\\out_photo");
-                    for (int j = 0; i < files.Length; i++) {
-                        list.Add(new ReadyImages { Path = files[j], Title = files[j] });
-                    }
                     this.Dispatcher.Invoke(() => {
-                        //MessageBox.Show(String.Join("\n", files));
                         Preview.ItemsSource = ReadyImages.GetReadyImages;
                     });
                 }
@@ -158,9 +146,9 @@ namespace AI_WPF {
         public ICommand StartCommand => startCommand;
 
         private void Preview_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if (Preview.ItemsSource != null) {
+            if (Preview.SelectedItem != null) {
                 ReadyImages image = (ReadyImages)Preview.SelectedItem;
-                SelectedImage.Source = new BitmapImage(new Uri(image.Path));
+                SelectedImage.Source = image.Image;
                 SelectedText.Text = image.Title;
             }
         }
@@ -173,7 +161,7 @@ namespace AI_WPF {
         private void Delete_Click(object sender, RoutedEventArgs e) {
             Preview.ItemsSource = ReadyImages.Empty;
             SelectedImage.Source = new BitmapImage();
-            SelectedText.Text= String.Empty;
+            SelectedText.Text= string.Empty;
         }
     }
 
