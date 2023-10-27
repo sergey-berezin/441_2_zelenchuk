@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.33414.496
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AI_IO", "AI_IO\AI_IO.csproj", "{8B0D5EEE-0F47-4BB3-A4C1-6174326AF6E3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AI_CONSOLE", "AI_IO\AI_CONSOLE.csproj", "{8B0D5EEE-0F47-4BB3-A4C1-6174326AF6E3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIPack", "AI_Pack\AIPack.csproj", "{1B9F35DF-5397-4497-8BC6-5EBD00B61188}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AIPack", "AI_Pack\AIPack.csproj", "{1B9F35DF-5397-4497-8BC6-5EBD00B61188}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AI_WPF", "AI_WPF\AI_WPF.csproj", "{7B97D5AA-579F-47CA-900A-17530152133E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{1B9F35DF-5397-4497-8BC6-5EBD00B61188}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1B9F35DF-5397-4497-8BC6-5EBD00B61188}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1B9F35DF-5397-4497-8BC6-5EBD00B61188}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B97D5AA-579F-47CA-900A-17530152133E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B97D5AA-579F-47CA-900A-17530152133E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B97D5AA-579F-47CA-900A-17530152133E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B97D5AA-579F-47CA-900A-17530152133E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

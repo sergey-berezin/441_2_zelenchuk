@@ -3,12 +3,16 @@ using Microsoft.ML.OnnxRuntime;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp.Drawing.Processing;
 using System.Net;
-using System.Runtime.ConstrainedExecution;
-using System.Reflection.Metadata.Ecma335;
-using SixLabors.ImageSharp;
 
 namespace AIPack {
     public class AIManager {
+
+        private class UnsetTools : IManagerTools {
+            public void Logger(string message) => Console.WriteLine("Not implemented");
+            public void SaveExtraData(double X, double Y, double W, double H, int Class, string resfilename) => Console.WriteLine("Not implemented");
+            public void SavePhoto(Image<Rgb24> Image, string filname) => Console.WriteLine("Not implemented");
+        }
+
         private InferenceSession ? session;
 
         private (double, double)[] anchors = new (double, double)[] {
@@ -65,14 +69,19 @@ namespace AIPack {
             session = new InferenceSession("tinyyolov2-8.onnx");
         }
 
-        public Task CallModelAsync(IManagerTools tools, Image<Rgb24> image, string filename, CancellationToken token) {
-            return Task.Factory.StartNew(() => CallModel(tools, image, filename), token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        public Task<ResultData> CallModelAsync(Image<Rgb24> image, CancellationToken token, string filename = "unset", IManagerTools? tools = null) {
+            return Task.Factory.StartNew(() => CallModel(image, filename, tools), token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
 
-        private void CallModel(IManagerTools tools, Image<Rgb24> image, string filename) {
+        private ResultData CallModel(Image<Rgb24> image, string filename, IManagerTools tools) {
+            
+            if (tools == null) {
+                tools = new UnsetTools();
+            }
+
             if (!IsDownloaded) {
                 tools.Logger("Model is not downloaded.");
-                return;
+                return new ResultData();
             }
             tools.Logger($"Started file: {filename}");
 
@@ -113,6 +122,7 @@ namespace AIPack {
             IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results;
 
             //Thread.Sleep(1000);
+            //Thread.Sleep(10000);
             lock (session) {
                 results = session.Run(inputs);
             }
@@ -189,13 +199,14 @@ namespace AIPack {
             }
 
             foreach (var obj in objects)
-                tools.SaveToCSV(obj.XMin, obj.YMax, obj.XMax - obj.XMin, obj.YMax - obj.YMin, obj.Class, filename.Split('.')[0] + "_out.jpg");
+                tools.SaveExtraData(obj.XMin, obj.YMax, obj.XMax - obj.XMin, obj.YMax - obj.YMin, obj.Class, filename.Split('.')[0] + "_out.jpg");
 
             var final = resized.Clone();
             Annotate(final, objects);
             tools.SavePhoto(final, filename.Split('.')[0] + "_out.jpg");
 
             tools.Logger($"Finished file: {filename}");
+            return new ResultData() { ResultImage = final, ObjectCount = objects.Count };
         }
 
         private float Sigmoid(float value) {
@@ -246,7 +257,13 @@ namespace AIPack {
 
     public interface IManagerTools {
         public void Logger(string message);
-        public void SaveToCSV(double X, double Y, double W, double H, int Class, string resfilename);
+        public void SaveExtraData(double X, double Y, double W, double H, int Class, string resfilename);
         public void SavePhoto(Image<Rgb24> Image, string filname);
+    }
+
+    public class ResultData {
+        public int ObjectCount { get; set; }
+        public Image<Rgb24> ResultImage { get; set; }
+
     }
 }

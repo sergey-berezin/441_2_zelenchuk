@@ -2,7 +2,7 @@
   "profiles": {
     "AI_IO": {
       "commandName": "Project",
-      "commandLineArgs": "bird.jpg bottle.jpg bus.jpg cat.jpg cats.jpg chair.jpg cow.jpg person.jpg "
+      "commandLineArgs": "bird.jpg bottle.jpg bus.jpg cat.jpg cats.jpg chair.jpg cow.jpg person.jpg maxresdefault.jpg Без_имени.jpg"
     }
   }
 }

@@ -1,10 +1,5 @@
 ﻿using AIPack;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using System.Reflection;
-using System;
 using System.Text;
-using System.Threading;
 
 namespace AI_App {
     class Program {
@@ -21,7 +16,7 @@ namespace AI_App {
                 return;
             }
 
-            Saver saver = new Saver();
+            Tools tools = new Tools();
             List<Task> taskList = new List<Task>();
             using CancellationTokenSource cts = new CancellationTokenSource();
 
@@ -37,7 +32,7 @@ namespace AI_App {
             foreach (var filename in args) {
                 var image = Image.Load<Rgb24>("..\\..\\..\\..\\in_photo\\" + filename);
                 CancellationToken token = cts.Token;
-                Task task = aIManager.CallModelAsync(saver, image, filename, token);
+                Task task = aIManager.CallModelAsync(image, token, filename, tools);
                 taskList.Add(task);
             }
 
@@ -52,9 +47,9 @@ namespace AI_App {
             }
         }
 
-        class Saver : IManagerTools {
+        class Tools : IManagerTools {
             public void Logger(string message) => Console.WriteLine(message);
-            public void SaveToCSV(double X, double Y, double W, double H, int Class, string resfilename) {
+            public void SaveExtraData(double X, double Y, double W, double H, int Class, string resfilename) {
                 string csvfilename = "..\\..\\..\\..\\res.csv";
                 FileInfo fileInfo = new FileInfo(csvfilename);
 
@@ -64,6 +59,13 @@ namespace AI_App {
                     var file = File.Create(csvfilename);
                     file.Write(Encoding.Default.GetBytes("Filename, Class, X, Y, W, H\n"));
                     file.Close();
+                    File.AppendAllText(csvfilename,
+                        $"{Path.GetFullPath("..\\..\\..\\..\\out_photo\\" + resfilename)}, " +
+                        $"{Class.ToString()}, " +
+                        $"{X.ToString().Replace(',', '.')}, " +
+                        $"{Y.ToString().Replace(',', '.')}, " +
+                        $"{W.ToString().Replace(',', '.')}, " +
+                        $"{H.ToString().Replace(',', '.')}\n");
                 }
                 else {
                     File.AppendAllText(csvfilename,
