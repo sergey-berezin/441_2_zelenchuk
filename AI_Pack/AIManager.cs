@@ -204,9 +204,10 @@ namespace AIPack {
             var final = resized.Clone();
             Annotate(final, objects);
             tools.SavePhoto(final, filename.Split('.')[0] + "_out.jpg");
+            var classes_arr = objects.Select(o => o.Class).ToList();
 
             tools.Logger($"Finished file: {filename}");
-            return new ResultData() { ResultImage = final, ObjectCount = objects.Count };
+            return new ResultData() { ResultImage = final, ObjectCount = objects.Count, Classes = classes_arr };
         }
 
         private float Sigmoid(float value) {
@@ -264,6 +265,6 @@ namespace AIPack {
     public class ResultData {
         public int ObjectCount { get; set; }
         public Image<Rgb24> ResultImage { get; set; }
-
+        public List<int> Classes { get; set; }
     }
 }
