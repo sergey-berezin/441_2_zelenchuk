@@ -1,16 +1,24 @@
 ﻿using AIPack;
 using Microsoft.EntityFrameworkCore;
 using ObjectDetectionWPF.ViewModel;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Collections.Generic;
+using System.DirectoryServices;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+
 
 namespace AI_WPF {
     /// <summary>
@@ -19,9 +27,9 @@ namespace AI_WPF {
 
     public class Photo {
         public int PhotoId { get; set; }
-        //public byte[] PhotoBytes { get; set; }
-        public string SoursePath { get; set; }
-        public string ResultPath { get; set; }
+        public byte[] SourcePhoto { get; set; }
+        public byte[] ResultPhoto { get; set; }
+        public string Path { get; set; }
         virtual public ICollection<Class> Classes { get; set; }
     }
 
@@ -36,7 +44,6 @@ namespace AI_WPF {
         public DbSet<Class> Classes { get; set; }
 
         public AIPhotosContext() {
-            Database.EnsureDeleted();
             Database.EnsureCreated();
         }
 
@@ -67,11 +74,14 @@ namespace AI_WPF {
                     new Class { ClassId = 19, ClassName = "train" },
                     new Class { ClassId = 20, ClassName = "tvmonitor" }
             });
+            modelBuilder.Entity<Photo>().Property(ph => ph.PhotoId).ValueGeneratedOnAdd();
         }
     }
 
     public class ReadyImages {
-        public ImageSharpImageSource<Rgb24> Image { get; set; }
+        public ImageSharpImageSource<Rgb24> SourceImage { get; set; }
+        public ImageSharpImageSource<Rgb24> ResultImage { get; set; }
+        public List<string> Classes { get; set; }
         public string Title { get; set; }   
         public int ObjectsCount { get; set; }
         public static List<ReadyImages> Empty { get => new List<ReadyImages>(); }
@@ -84,38 +94,8 @@ namespace AI_WPF {
 
         public MainWindow() {
             InitializeComponent();
-
-            //using(var db = new AIPhotosContext()) {
-            //    //var a = db.Authors.Where(a => a.FirstName.StartsWith("F")).FirstOrDefault();
-            //    var ph = new Photo() { PhotoId = 123, ResultPath = "text", SoursePath = "text" };
-            //    var c = new Class() { ClassId = 1, ClassName = "Test" };
-            //    ph.Classes = new List<Class>() { c };
-            //    ph.Classes.Add(c);
-            //    //b.Authors = new List<Author>();
-            //    //b.Authors.Add(a);
-            //    //a.Books = new List<Book>();
-            //    //a.Books.Add(b);
-            //    //db.Add(b);
-
-            //    db.SaveChanges();
-            //}
-
+            DrawPhotos();
             startCommand = new AsyncRelayCommand(async _ => {
-
-                using (var db = new AIPhotosContext()) {
-                    //var a = db.Authors.Where(a => a.FirstName.StartsWith("F")).FirstOrDefault();
-                    var ph = new Photo() { PhotoId = 123, ResultPath = "text", SoursePath = "text" };
-                    var c = db.Classes.Where(x => x.ClassName == "cat").ToArray();
-                    ph.Classes = new List<Class>() { c[0] };
-                    //b.Authors = new List<Author>();
-                    //b.Authors.Add(a);
-                    //a.Books = new List<Book>();
-                    //a.Books.Add(b);
-                    //db.Add(b);
-                    //db.Add(ph);
-
-                    db.SaveChanges();
-                }
 
                 Delete.IsEnabled = false;
                 cts = new CancellationTokenSource();
@@ -143,20 +123,50 @@ namespace AI_WPF {
                     MessageBox.Show(ex.Message, ex.StackTrace);
                 }
 
-                List<ReadyImages> list = new List<ReadyImages>();
+                
 
                 for (int i = 0; i < dialog.SafeFileNames.Length; i++) {
+                    
+                    //проверка на вхождение в бд
+                    int count;
+                    using (var db = new AIPhotosContext()) {
+                        count = db.Photos.Where(ph => ph.Path == dialog.FileNames[i]).Count();
+                    }
+                    if (count != 0) {
+                        //вытаскивание из бд во вьюшку
+                        DrawPhotos();
+                        continue;
+                    }
+
+                    //обработка и добавление в бд
                     var image = SixLabors.ImageSharp.Image.Load<Rgb24>(dialog.FileNames[i]);
                     CancellationToken token = cts.Token;
                     var task = await aIManager.CallModelAsync(image, token);
+                    using (var db = new AIPhotosContext()) {
+                        List<Class> classes = new List<Class>();
+                        Photo photo = new Photo();
+                        foreach(var c in task.Classes) {
+                            classes.Add(db.Classes.Where(db_c => db_c.ClassId == (c+1)).First());
+                        }
+                        
+                        using (MemoryStream memoryStream = new MemoryStream()) {
+                            image.Save(memoryStream, new JpegEncoder());
+                            photo.SourcePhoto = memoryStream.ToArray();
+                        }
+                        using (MemoryStream memoryStream = new MemoryStream()) {
+                            task.ResultImage.Save(memoryStream, new JpegEncoder());
+                            photo.ResultPhoto = memoryStream.ToArray();
+                        }
 
-                    list.Add(new ReadyImages() { Image = new ImageSharpImageSource<Rgb24>(task.ResultImage), Title = dialog.SafeFileNames[i], ObjectsCount = task.ObjectCount });
-                    var ordered_list = list.OrderByDescending(x => x.ObjectsCount).ThenBy(x => x.Title);
+                        photo.Path = dialog.FileNames[i];
+                        photo.Classes = classes;
 
-                    this.Dispatcher.Invoke(() => {
-                        Preview.ItemsSource = null;
-                        Preview.ItemsSource = ordered_list;
-                    });
+                        db.Add(photo);
+                        db.SaveChanges();
+                    }
+
+                    //вытаскивание из бд во вьюшку
+                    DrawPhotos();
                 }
 
                 Delete.IsEnabled = true;
@@ -165,22 +175,60 @@ namespace AI_WPF {
             DataContext = this;
         }
 
+        private void DrawPhotos() {
+            List<Photo> photoList = new List<Photo>();
+            List<ReadyImages> list = new List<ReadyImages>();
+
+            using (var db = new AIPhotosContext()) {
+                photoList = db.Photos.ToList();
+
+                foreach (var photo in photoList) {
+                    Image<Rgb24> resImg;
+                    Image<Rgb24> srcImg;
+                    using (MemoryStream ms = new MemoryStream(photo.SourcePhoto)) {
+                        srcImg = SixLabors.ImageSharp.Image.Load<Rgb24>(ms);
+                    }
+                    using (MemoryStream ms = new MemoryStream(photo.ResultPhoto)) {
+                        resImg = SixLabors.ImageSharp.Image.Load<Rgb24>(ms);
+                    }
+                    var c = photo.Classes.Select(c => c.ClassName).ToList();
+                    list.Add(new ReadyImages() {
+                        SourceImage = new ImageSharpImageSource<Rgb24>(srcImg),
+                        ResultImage = new ImageSharpImageSource<Rgb24>(resImg),
+                        Title = photo.Path.Split('\\').Last(),
+                        Classes = photo.Classes.Select(c => c.ClassName).ToList(),
+                        ObjectsCount = photo.Classes.Count
+                    });
+                }
+
+                var ordered_list = list.OrderByDescending(x => x.ObjectsCount).ThenBy(x => x.Title);
+
+                this.Dispatcher.Invoke(() => {
+                    Preview.ItemsSource = null;
+                    Preview.ItemsSource = ordered_list;
+                });
+            }
+        }
+
         public ICommand StartCommand => startCommand;
 
         private void Preview_SelectionChanged(object sender, SelectionChangedEventArgs e) {
             if (Preview.SelectedItem != null) {
                 ReadyImages image = (ReadyImages)Preview.SelectedItem;
-                SelectedImage.Source = image.Image;
-                SelectedText.Text = image.Title;
+                SelectedImage.Source = image.ResultImage;
+                SelectedText.Text = String.Join(", ", image.Classes);
             }
         }
 
-        private void Cancle_Click(object sender, RoutedEventArgs e) {
+        private async void Cancle_Click(object sender, RoutedEventArgs e) {
             if (cts != null)
                 cts.Cancel();
         }
 
         private void Delete_Click(object sender, RoutedEventArgs e) {
+            using (var db = new AIPhotosContext()) {
+                db.Database.ExecuteSqlRaw("DELETE from Photos");
+            }
             Preview.ItemsSource = ReadyImages.Empty;
             SelectedImage.Source = new BitmapImage();
             SelectedText.Text = string.Empty;
