@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AI_WPF"
         mc:Ignorable="d"
-        Icon="C:\Users\jur_chik\source\repos\441_2_zelenchuk\icon.jpg"
+        Icon="C:\Users\5064408\source\repos\441_2_zelenchuk\icon.jpg"
         Title="AI Manager" Height="450" Width="800">
     <Grid x:Name="grid">
         <Grid.ColumnDefinitions>
