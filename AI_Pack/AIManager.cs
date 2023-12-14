@@ -198,8 +198,14 @@ namespace AIPack {
                 }
             }
 
-            foreach (var obj in objects)
+            List<ResultDataForWeb> finalList = new List<ResultDataForWeb>();
+
+            foreach (var obj in objects) {
                 tools.SaveExtraData(obj.XMin, obj.YMax, obj.XMax - obj.XMin, obj.YMax - obj.YMin, obj.Class, filename.Split('.')[0] + "_out.jpg");
+                var img = resized.Clone();
+                Annotate(img, new List<ObjectBox> { obj });
+                finalList.Add(new ResultDataForWeb() { Img = img, Class = labels[obj.Class], Confidence = obj.Confidence });
+            }
 
             var final = resized.Clone();
             Annotate(final, objects);
@@ -207,7 +213,7 @@ namespace AIPack {
             var classes_arr = objects.Select(o => o.Class).ToList();
 
             tools.Logger($"Finished file: {filename}");
-            return new ResultData() { ResultImage = final, ObjectCount = objects.Count, Classes = classes_arr };
+            return new ResultData() { ResultImage = final, ObjectCount = objects.Count, Classes = classes_arr, ResultForWeb = finalList };
         }
 
         private float Sigmoid(float value) {
@@ -266,5 +272,13 @@ namespace AIPack {
         public int ObjectCount { get; set; }
         public Image<Rgb24> ResultImage { get; set; }
         public List<int> Classes { get; set; }
+
+        public List<ResultDataForWeb> ResultForWeb { get; set; } 
+    }
+
+    public class ResultDataForWeb {
+        public Image<Rgb24> Img { get; set; }
+        public string Class { get; set; }
+        public double Confidence { get; set; }
     }
 }

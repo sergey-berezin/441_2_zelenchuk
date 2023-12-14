@@ -4,6 +4,7 @@
 
 .images {
     display: inline-flex;
+    flex-wrap: wrap;
 }
 
 .image {
@@ -11,26 +12,26 @@
     position: relative;
 }
 
-    .image .blur {
-        display: none;
-        position: absolute;
-        top: 20px;
-    }
+.image .blur {
+    display: none;
+    position: absolute;
+    top: 20px;
+}
 
-    .image.loading .element {
-        filter: blur(5px);
-    }
+.image.loading .element {
+    filter: blur(5px);
+}
 
-    .image.loading .blur {
-        display: block;
-    }
+.image.loading .blur {
+    display: block;
+}
 
 
-    .image .classname,
-    .image .confidence {
-        position: relative;
-        padding: 1px 5px;
-    }
+.image .classname,
+.image .confidence {
+    position: relative;
+    padding: 1px 5px;
+}
 
 .classname span,
 .confidence span {

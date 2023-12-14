@@ -3,6 +3,8 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp;
 using AIPack;
 using SixLabors.ImageSharp.Formats.Jpeg;
+using System.Text.Json;
+using Microsoft.AspNetCore.Components.Server;
 
 namespace AI_WEB_APP.Controllers {
     
@@ -27,29 +29,44 @@ namespace AI_WEB_APP.Controllers {
         }
 
         [HttpPost]
-        public async Task<ActionResult<List<Photo>>> Post([FromBody] string data) {
-
+        public async Task<ActionResult<List<Photo>>> Post([FromBody] ReciveData data) {
             List<Photo> photoList = new List<Photo>();
             Image<Rgb24> sourceImage;
-            byte[] resultImage;
 
-            //Convert.ToBase64String()
-            
-            using (MemoryStream memoryStream = new MemoryStream(Convert.FromBase64String(data))) {
-                sourceImage = Image.Load<Rgb24>(memoryStream);
+            try {
+                using (MemoryStream memoryStream = new MemoryStream(Convert.FromBase64String(data.img))) {
+                    sourceImage = Image.Load<Rgb24>(memoryStream);
+                }
+            }
+            catch(Exception ex) {
+                _logger.LogCritical(ex.Message);
+                return BadRequest(ex.Message);
             }
 
             if (CTS.IsCancellationRequested) {
                 CTS = new CancellationTokenSource();
             }
-            var task = await AiManager.CallModelAsync(sourceImage, CTS.Token);
+            try {
+                var task = await AiManager.CallModelAsync(sourceImage, CTS.Token);
 
-            using (MemoryStream memoryStream = new MemoryStream()) {
-                task.ResultImage.Save(memoryStream, new JpegEncoder());
-                resultImage = memoryStream.ToArray();
+                foreach(var res in task.ResultForWeb) {
+                    using (MemoryStream memoryStream = new MemoryStream()) {
+                        res.Img.Save(memoryStream, new JpegEncoder());
+                        photoList.Add(new Photo() { Class = res.Class, Img = Convert.ToBase64String(memoryStream.ToArray()), Id = data.id, Сonfidence = res.Confidence });
+                    }
+                }
+            }
+            catch(Exception ex) {
+                _logger.LogCritical(ex.Message);
+                return Problem(ex.Message);
             }
 
-            return Ok(new Photo { Class = "test", Data = resultImage, Id = 1, Сonfidence = 0.2f });
+            Thread.Sleep(2000);
+            return Ok(photoList);
         }
+    }
+    public class ReciveData {
+        public int id { get; set; }
+        public string img { get; set; }
     }
 }

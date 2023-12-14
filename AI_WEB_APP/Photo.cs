@@ -2,8 +2,8 @@
     public class Photo {
         public int Id { get; set; }
         public string Class { get; set; }
-        public float Сonfidence { get; set; }
-        public byte[] Data { get; set; }
+        public double Сonfidence { get; set; }
+        public string Img { get; set; }
 
     }
 }
