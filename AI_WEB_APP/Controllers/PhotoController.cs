@@ -5,6 +5,7 @@ using AIPack;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Server;
+using System.IO;
 
 namespace AI_WEB_APP.Controllers {
     
@@ -33,6 +34,8 @@ namespace AI_WEB_APP.Controllers {
             List<Photo> photoList = new List<Photo>();
             Image<Rgb24> sourceImage;
 
+            data.img = "";
+
             try {
                 using (MemoryStream memoryStream = new MemoryStream(Convert.FromBase64String(data.img))) {
                     sourceImage = Image.Load<Rgb24>(memoryStream);
@@ -49,6 +52,15 @@ namespace AI_WEB_APP.Controllers {
             try {
                 var task = await AiManager.CallModelAsync(sourceImage, CTS.Token);
 
+                if (task.ObjectCount == 0) {
+                    using (MemoryStream memoryStream = new MemoryStream()) {
+                        var res_img = Image.Load<Rgb24>(Directory.GetCurrentDirectory() + "\\ures_side\\empty.jpg");
+                        res_img.Save(memoryStream, new JpegEncoder());
+                        photoList.Add(new Photo() { Class = "None", Img = Convert.ToBase64String(memoryStream.ToArray()), Id = data.id, Сonfidence = 0 });
+                        return Ok(photoList);
+                    }
+                }
+
                 foreach(var res in task.ResultForWeb) {
                     using (MemoryStream memoryStream = new MemoryStream()) {
                         res.Img.Save(memoryStream, new JpegEncoder());
@@ -61,7 +73,7 @@ namespace AI_WEB_APP.Controllers {
                 return Problem(ex.Message);
             }
 
-            Thread.Sleep(2000);
+            //Thread.Sleep(2000);
             return Ok(photoList);
         }
     }

@@ -52,7 +52,8 @@ $(document).ready(function () {
 
                 },
                 error: (ex) => {
-                    console.log(ex);
+                    console.log(ex)
+                    alert(ex);
                 }
             });
 
